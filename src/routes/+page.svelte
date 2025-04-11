@@ -40,6 +40,23 @@
     totalCredits: 0
   };
 
+  // Profile related state
+  let profile = {
+    name: '',
+    description: '',
+    creditsAvailable: 0,
+    creditsSold: 0,
+    isProvider: false,
+    reputation: 0,
+    exists: false
+  };
+  let profileName = '';
+  let profileDescription = '';
+  let isProvider = false;
+  let amountToAdd = 0;
+  let providers = [];
+  let selectedProvider = null;
+
   // Update with your deployed contract address
   const CONTRACT_ADDRESS = '0xA88535C9C4F446857975fa18a154eD6AA57d98A1';
   const CONTRACT_ABI = [
@@ -122,6 +139,45 @@
       "name": "getTotalVolume",
       "outputs": [{"type": "uint256"}],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"type": "string"},
+        {"type": "string"},
+        {"type": "bool"}
+      ],
+      "name": "createProfile",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"type": "address"}],
+      "name": "getProfile",
+      "outputs": [
+        {"type": "string"},
+        {"type": "string"},
+        {"type": "uint256"},
+        {"type": "uint256"},
+        {"type": "bool"},
+        {"type": "uint256"}
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getProviders",
+      "outputs": [{"type": "address[]"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{"type": "uint256"}],
+      "name": "addCredits",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     }
   ];
@@ -210,6 +266,12 @@
         // Set average price to current price for now
         marketStats.averagePrice = carbonCredits.price;
         
+        // Load profile data
+        await loadProfile(selectedAccount);
+        
+        // Load providers
+        await loadProviders();
+        
         console.log('Carbon credit data loaded:', {
           available: carbonCredits.available,
           price: carbonCredits.price,
@@ -219,6 +281,65 @@
       } catch (err) {
         console.error('Error loading carbon credit data:', err);
       }
+    }
+  }
+  
+  async function loadProfile(address) {
+    try {
+      const [
+        name,
+        description,
+        creditsAvailable,
+        creditsSold,
+        isProvider,
+        reputation
+      ] = await contract.getProfile(address);
+      
+      profile = {
+        name,
+        description,
+        creditsAvailable: Number(creditsAvailable),
+        creditsSold: Number(creditsSold),
+        isProvider,
+        reputation: Number(reputation),
+        exists: name.length > 0
+      };
+      
+      console.log('Profile loaded:', profile);
+    } catch (err) {
+      console.error('Error loading profile:', err);
+      profile.exists = false;
+    }
+  }
+  
+  async function loadProviders() {
+    try {
+      const providerAddresses = await contract.getProviders();
+      providers = [];
+      
+      for (const address of providerAddresses) {
+        const [
+          name,
+          description,
+          creditsAvailable,
+          creditsSold,
+          isProvider,
+          reputation
+        ] = await contract.getProfile(address);
+        
+        providers.push({
+          address,
+          name,
+          description,
+          creditsAvailable: Number(creditsAvailable),
+          creditsSold: Number(creditsSold),
+          reputation: Number(reputation)
+        });
+      }
+      
+      console.log('Providers loaded:', providers);
+    } catch (err) {
+      console.error('Error loading providers:', err);
     }
   }
   
@@ -401,9 +522,80 @@
     }
   }
 
+  async function createProfile() {
+    if (!profileName.trim()) {
+      error = 'Profile name cannot be empty';
+      return;
+    }
+    
+    try {
+      loading = true;
+      error = '';
+      txStatus = 'Creating profile...';
+      
+      const tx = await contract.createProfile(profileName, profileDescription, isProvider);
+      txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+      
+      // Wait for confirmation
+      txStatus = 'Waiting for confirmation...';
+      await tx.wait();
+      
+      // Update local profile
+      await loadProfile(selectedAccount);
+      
+      txStatus = 'Profile successfully created!';
+      setTimeout(() => txStatus = '', 5000);
+    } catch (err) {
+      error = 'Error creating profile: ' + err.message;
+      console.error('Error creating profile:', err);
+      txStatus = '';
+    } finally {
+      loading = false;
+    }
+  }
+  
+  async function addCredits() {
+    if (!amountToAdd || amountToAdd <= 0) {
+      error = 'Please enter a valid amount to add';
+      return;
+    }
+    
+    try {
+      loading = true;
+      error = '';
+      txStatus = 'Adding credits...';
+      
+      const tx = await contract.addCredits(amountToAdd);
+      txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+      
+      // Wait for confirmation
+      txStatus = 'Waiting for confirmation...';
+      await tx.wait();
+      
+      // Update local profile and market stats
+      await loadProfile(selectedAccount);
+      await loadInitialData();
+      
+      txStatus = 'Credits successfully added!';
+      amountToAdd = 0;
+      setTimeout(() => txStatus = '', 5000);
+    } catch (err) {
+      error = 'Error adding credits: ' + err.message;
+      console.error('Error adding credits:', err);
+      txStatus = '';
+    } finally {
+      loading = false;
+    }
+  }
+
   async function buyCarbonCredits() {
     if (!amountToBuy || amountToBuy <= 0) {
       error = 'Please enter a valid amount to buy';
+      return;
+    }
+    
+    if (!profile.exists) {
+      error = 'You need to create a profile before buying carbon credits';
       return;
     }
 
@@ -429,7 +621,7 @@
         timestamp: new Date().toISOString()
       });
       
-      // Refresh market stats
+      // Refresh market stats and providers
       await loadInitialData();
       
       txStatus = 'Purchase successful!';
@@ -452,6 +644,11 @@
 
     if (amountToSell > carbonCredits.available) {
       error = 'Insufficient carbon credits to sell';
+      return;
+    }
+    
+    if (!profile.exists) {
+      error = 'You need to create a profile before selling carbon credits';
       return;
     }
 
@@ -584,6 +781,88 @@
         {/await}
       </div>
 
+      {#if !profile.exists}
+        <div class="profile-creation card">
+          <h3>Create Your Profile</h3>
+          <p>You need to create a profile before trading carbon credits</p>
+          <div class="input-group">
+            <input 
+              type="text" 
+              bind:value={profileName} 
+              placeholder="Profile Name"
+            >
+            <textarea 
+              bind:value={profileDescription} 
+              placeholder="Profile Description"
+              rows="3"
+            ></textarea>
+            <div class="checkbox-group">
+              <input 
+                type="checkbox" 
+                id="isProvider" 
+                bind:checked={isProvider}
+              >
+              <label for="isProvider">I want to provide carbon credits</label>
+            </div>
+            <button 
+              on:click={createProfile} 
+              disabled={loading}
+              class="action-btn create"
+            >
+              {loading ? 'Creating...' : 'Create Profile'}
+            </button>
+          </div>
+        </div>
+      {:else}
+        <div class="profile-info card">
+          <h3>Your Profile</h3>
+          <div class="profile-details">
+            <div class="profile-field">
+              <span class="field-label">Name:</span>
+              <span class="field-value">{profile.name}</span>
+            </div>
+            <div class="profile-field">
+              <span class="field-label">Description:</span>
+              <span class="field-value">{profile.description}</span>
+            </div>
+            <div class="profile-field">
+              <span class="field-label">Type:</span>
+              <span class="field-value">{profile.isProvider ? 'Provider' : 'Trader'}</span>
+            </div>
+            <div class="profile-field">
+              <span class="field-label">Reputation:</span>
+              <span class="field-value">{profile.reputation}</span>
+            </div>
+            {#if profile.isProvider}
+              <div class="profile-field">
+                <span class="field-label">Credits Available:</span>
+                <span class="field-value">{profile.creditsAvailable} CC</span>
+              </div>
+              <div class="profile-field">
+                <span class="field-label">Credits Sold:</span>
+                <span class="field-value">{profile.creditsSold} CC</span>
+              </div>
+              <div class="input-group">
+                <input 
+                  type="number" 
+                  bind:value={amountToAdd} 
+                  placeholder="Amount to add"
+                  min="0"
+                  step="1"
+                >
+                <button 
+                  on:click={addCredits} 
+                  disabled={loading}
+                  class="action-btn add"
+                >
+                  {loading ? 'Adding...' : 'Add Credits'}
+                </button>
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
       <div class="trading-section">
         <div class="market-info card">
           <h3>Market Information</h3>
@@ -597,89 +876,110 @@
           </div>
         </div>
 
-        <div class="trading-actions">
-          <div class="buy-section card">
-            <h3>Buy Carbon Credits</h3>
+        {#if profile.exists}
+          <div class="trading-actions">
+            <div class="buy-section card">
+              <h3>Buy Carbon Credits</h3>
+              <div class="input-group">
+                <input 
+                  type="number" 
+                  bind:value={amountToBuy} 
+                  placeholder="Amount to buy"
+                  min="0"
+                  step="1"
+                >
+                <div class="cost-info">
+                  <span>Total Cost:</span>
+                  <span class="cost-value">{totalBuyCost} ETH</span>
+                </div>
+                <button 
+                  on:click={buyCarbonCredits} 
+                  disabled={loading}
+                  class="action-btn buy"
+                >
+                  {loading ? 'Processing...' : 'Buy Credits'}
+                </button>
+              </div>
+            </div>
+
+            <div class="sell-section card">
+              <h3>Sell Carbon Credits</h3>
+              <div class="input-group">
+                <input 
+                  type="number" 
+                  bind:value={amountToSell} 
+                  placeholder="Amount to sell"
+                  min="0"
+                  step="1"
+                >
+                <div class="cost-info">
+                  <span>Total Value:</span>
+                  <span class="cost-value">{totalSellValue} ETH</span>
+                </div>
+                <button 
+                  on:click={sellCarbonCredits} 
+                  disabled={loading}
+                  class="action-btn sell"
+                >
+                  {loading ? 'Processing...' : 'Sell Credits'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="price-update card">
+            <h3>Update Market Price</h3>
             <div class="input-group">
               <input 
                 type="number" 
-                bind:value={amountToBuy} 
-                placeholder="Amount to buy"
+                bind:value={newPrice} 
+                placeholder="New price in ETH"
                 min="0"
-                step="1"
+                step="0.0001"
               >
-              <div class="cost-info">
-                <span>Total Cost:</span>
-                <span class="cost-value">{totalBuyCost} ETH</span>
-              </div>
               <button 
-                on:click={buyCarbonCredits} 
+                on:click={updateCarbonCreditPrice} 
                 disabled={loading}
-                class="action-btn buy"
+                class="action-btn update"
               >
-                {loading ? 'Processing...' : 'Buy Credits'}
+                {loading ? 'Updating...' : 'Update Price'}
               </button>
             </div>
           </div>
 
-          <div class="sell-section card">
-            <h3>Sell Carbon Credits</h3>
-            <div class="input-group">
-              <input 
-                type="number" 
-                bind:value={amountToSell} 
-                placeholder="Amount to sell"
-                min="0"
-                step="1"
-              >
-              <div class="cost-info">
-                <span>Total Value:</span>
-                <span class="cost-value">{totalSellValue} ETH</span>
-              </div>
-              <button 
-                on:click={sellCarbonCredits} 
-                disabled={loading}
-                class="action-btn sell"
-              >
-                {loading ? 'Processing...' : 'Sell Credits'}
-              </button>
+          <div class="providers card">
+            <h3>Carbon Credit Providers</h3>
+            <div class="provider-list">
+              {#each providers as provider}
+                <div class="provider-item">
+                  <div class="provider-header">
+                    <span class="provider-name">{provider.name}</span>
+                    <span class="provider-reputation">Rep: {provider.reputation}</span>
+                  </div>
+                  <div class="provider-description">{provider.description}</div>
+                  <div class="provider-stats">
+                    <span>Available: {provider.creditsAvailable} CC</span>
+                    <span>Sold: {provider.creditsSold} CC</span>
+                  </div>
+                </div>
+              {/each}
             </div>
           </div>
-        </div>
 
-        <div class="price-update card">
-          <h3>Update Market Price</h3>
-          <div class="input-group">
-            <input 
-              type="number" 
-              bind:value={newPrice} 
-              placeholder="New price in ETH"
-              min="0"
-              step="0.0001"
-            >
-            <button 
-              on:click={updateCarbonCreditPrice} 
-              disabled={loading}
-              class="action-btn update"
-            >
-              {loading ? 'Updating...' : 'Update Price'}
-            </button>
+          <div class="transactions card">
+            <h3>Recent Transactions</h3>
+            <div class="transaction-list">
+              {#each carbonCredits.transactions.slice(-5).reverse() as tx}
+                <div class="transaction-item">
+                  <span class="tx-type {tx.type}">{tx.type}</span>
+                  <span class="tx-amount">{tx.amount} CC</span>
+                  <span class="tx-price">{tx.price} ETH</span>
+                  <span class="tx-time">{new Date(tx.timestamp).toLocaleString()}</span>
+                </div>
+              {/each}
+            </div>
           </div>
-        </div>
-
-        <div class="transactions card">
-          <h3>Recent Transactions</h3>
-          <div class="transaction-list">
-            {#each carbonCredits.transactions.slice(-5).reverse() as tx}
-              <div class="transaction-item">
-                <span class="tx-type {tx.type}">{tx.type}</span>
-                <span class="tx-amount">{tx.amount} CC</span>
-                <span class="tx-price">{tx.price} ETH</span>
-                <span class="tx-time">{new Date(tx.timestamp).toLocaleString()}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
+        {/if}
       </div>
     </div>
   {/if}
@@ -866,11 +1166,17 @@
     gap: 1rem;
   }
 
-  .input-group input {
+  .input-group input, .input-group textarea {
     padding: 0.75rem;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     font-size: 1rem;
+  }
+
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .action-btn {
@@ -894,6 +1200,16 @@
 
   .action-btn.update {
     background: #2563eb;
+    color: white;
+  }
+
+  .action-btn.create {
+    background: #8b5cf6;
+    color: white;
+  }
+
+  .action-btn.add {
+    background: #f59e0b;
     color: white;
   }
 
@@ -947,6 +1263,74 @@
   .cost-value {
     font-weight: 600;
     color: #0f172a;
+  }
+
+  .profile-creation, .profile-info {
+    margin-bottom: 2rem;
+  }
+
+  .profile-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .profile-field {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    background: #f8fafc;
+    border-radius: 8px;
+  }
+
+  .field-label {
+    font-weight: 500;
+    color: #64748b;
+  }
+
+  .field-value {
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .provider-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .provider-item {
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+  }
+
+  .provider-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .provider-name {
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .provider-reputation {
+    color: #8b5cf6;
+    font-weight: 500;
+  }
+
+  .provider-description {
+    color: #64748b;
+    margin-bottom: 0.5rem;
+  }
+
+  .provider-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: #64748b;
   }
 
   @media (max-width: 768px) {
