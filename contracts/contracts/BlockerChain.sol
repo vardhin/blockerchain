@@ -14,6 +14,7 @@ contract BlockerChain {
         uint256 creditsSold;
         bool isProvider;
         uint256 reputation;
+        bool exists;
     }
     
     mapping(address => CarbonProfile) private carbonProfiles;
@@ -72,7 +73,7 @@ contract BlockerChain {
     
     // New profile functions
     function createProfile(string memory name, string memory description, bool isProvider) public {
-        require(bytes(carbonProfiles[msg.sender].name).length == 0, "Profile already exists");
+        require(!carbonProfiles[msg.sender].exists, "Profile already exists");
         
         carbonProfiles[msg.sender] = CarbonProfile({
             name: name,
@@ -80,7 +81,8 @@ contract BlockerChain {
             creditsAvailable: 0,
             creditsSold: 0,
             isProvider: isProvider,
-            reputation: 100
+            reputation: 100,
+            exists: true
         });
         
         if (isProvider) {
@@ -96,7 +98,8 @@ contract BlockerChain {
         uint256 creditsAvailable,
         uint256 creditsSold,
         bool isProvider,
-        uint256 reputation
+        uint256 reputation,
+        bool exists
     ) {
         CarbonProfile memory profile = carbonProfiles[user];
         return (
@@ -105,7 +108,8 @@ contract BlockerChain {
             profile.creditsAvailable,
             profile.creditsSold,
             profile.isProvider,
-            profile.reputation
+            profile.reputation,
+            profile.exists
         );
     }
     
@@ -125,7 +129,7 @@ contract BlockerChain {
     
     function buyCarbonCredits(uint256 amount) public payable {
         require(amount > 0, "Amount must be greater than 0");
-        require(carbonProfiles[msg.sender].name.length > 0, "Buyer must have a profile");
+        require(carbonProfiles[msg.sender].exists, "Buyer must have a profile");
         
         uint256 totalCost = amount * carbonCreditPrice;
         require(msg.value >= totalCost, "Insufficient payment");
@@ -162,7 +166,7 @@ contract BlockerChain {
     function sellCarbonCredits(uint256 amount) public {
         require(amount > 0, "Amount must be greater than 0");
         require(carbonCredits[msg.sender] >= amount, "Insufficient carbon credits");
-        require(carbonProfiles[msg.sender].name.length > 0, "Seller must have a profile");
+        require(carbonProfiles[msg.sender].exists, "Seller must have a profile");
         
         // Transfer carbon credits from seller
         carbonCredits[msg.sender] -= amount;
