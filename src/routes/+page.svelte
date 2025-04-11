@@ -270,32 +270,73 @@
 
   async function initializeContract() {
     try {
-      console.log('Initializing contract...');
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner(selectedAccount);
-      contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-      
-      // Verify contract exists and is accessible
-      try {
-        const code = await provider.getCode(CONTRACT_ADDRESS);
-        if (code === '0x') {
-          throw new Error('Contract does not exist at the specified address');
-        }
-      } catch (err) {
-        error = 'Contract verification failed: ' + err.message;
-        console.error('Contract verification error:', err);
-        return;
+      if (!window.ethereum) {
+        throw new Error('Please install MetaMask');
       }
-      
-      contractState.isInitialized = true;
+
+      // Get the current network
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      console.log('Current network:', network);
+
+      // Check if we're on Ganache (chainId 1337)
+      if (network.chainId !== 1337n) {
+        console.log('Not on Ganache network, attempting to switch...');
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x539' }], // 1337 in hex
+          });
+        } catch (switchError) {
+          // This error code indicates that the chain has not been added to MetaMask
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x539',
+                  chainName: 'Ganache',
+                  nativeCurrency: {
+                    name: 'ETH',
+                    symbol: 'ETH',
+                    decimals: 18
+                  },
+                  rpcUrls: ['http://127.0.0.1:7545'],
+                  blockExplorerUrls: null
+                }]
+              });
+            } catch (addError) {
+              throw new Error('Failed to add Ganache network to MetaMask');
+            }
+          } else {
+            throw switchError;
+          }
+        }
+      }
+
+      // Verify contract exists
+      const code = await provider.getCode(CONTRACT_ADDRESS);
+      if (code === '0x') {
+        throw new Error('Contract does not exist at the specified address. Please ensure the contract is deployed.');
+      }
+
+      // Initialize contract
+      contract = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        CONTRACT_ABI,
+        provider
+      );
+
+      // Get signer
+      const signer = await provider.getSigner();
+      contract = contract.connect(signer);
+
       console.log('Contract initialized successfully');
-    } catch (err) {
-      error = 'Failed to initialize contract: ' + err.message;
-      debugInfo.lastError = {
-        message: err.message,
-        timestamp: new Date().toISOString()
-      };
-      console.error('Contract initialization error:', err);
+      return true;
+    } catch (error) {
+      console.error('Error initializing contract:', error);
+      error = 'Failed to initialize contract: ' + error.message;
+      return false;
     }
   }
   
@@ -664,7 +705,30 @@
         console.log('Profile does not exist yet, proceeding with creation');
       }
       
-      const tx = await contract.createProfile(profileName, profileDescription, isProvider);
+      // Log the transaction parameters for debugging
+      console.log('Creating profile with params:', {
+        name: profileName,
+        description: profileDescription,
+        isProvider: isProvider
+      });
+      
+      // Get the current network for debugging
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      console.log('Current network:', network);
+      
+      // Get the contract code for debugging
+      const code = await provider.getCode(CONTRACT_ADDRESS);
+      console.log('Contract code exists:', code !== '0x');
+      
+      // Create the profile with explicit gas limit
+      const tx = await contract.createProfile(
+        profileName, 
+        profileDescription, 
+        isProvider,
+        { gasLimit: 500000 } // Add explicit gas limit
+      );
+      
       txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
       
       // Wait for confirmation
@@ -679,6 +743,16 @@
     } catch (err) {
       error = 'Error creating profile: ' + err.message;
       console.error('Error creating profile:', err);
+      
+      // Add more detailed error information
+      if (err.code === 'CALL_EXCEPTION') {
+        console.error('Transaction failed. This could be due to:');
+        console.error('1. Contract not deployed at the specified address');
+        console.error('2. Wrong network connection');
+        console.error('3. Contract ABI mismatch');
+        console.error('4. Insufficient gas');
+      }
+      
       txStatus = '';
     } finally {
       loading = false;
