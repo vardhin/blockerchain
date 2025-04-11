@@ -1,0 +1,1 @@
+Error buying carbon credits: missing revert data (action="estimateGas", data=null, reason=null, transaction={ "data": "0xc5666a05000000000000000000000000000000000000000000000000000000000000000a", "from": "0xa576292FA67EaB9eD6b96eB8E97FD6030E89EA12", "to": "0xA88535C9C4F446857975fa18a154eD6AA57d98A1" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.13.5)
