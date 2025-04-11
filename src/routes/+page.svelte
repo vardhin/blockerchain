@@ -251,17 +251,37 @@
     if (contract && selectedAccount) {
       try {
         // Load carbon credit data
-        const credits = await contract.getCarbonCredits();
-        carbonCredits.available = Number(credits);
+        try {
+          const credits = await contract.getCarbonCredits();
+          carbonCredits.available = Number(credits);
+        } catch (err) {
+          console.error('Error loading carbon credits:', err);
+          carbonCredits.available = 0;
+        }
         
-        const price = await contract.getCarbonCreditPrice();
-        carbonCredits.price = Number(ethers.formatEther(price));
+        try {
+          const price = await contract.getCarbonCreditPrice();
+          carbonCredits.price = Number(ethers.formatEther(price));
+        } catch (err) {
+          console.error('Error loading carbon credit price:', err);
+          carbonCredits.price = 0;
+        }
         
-        const totalCredits = await contract.getTotalCarbonCredits();
-        marketStats.totalCredits = Number(totalCredits);
+        try {
+          const totalCredits = await contract.getTotalCarbonCredits();
+          marketStats.totalCredits = Number(totalCredits);
+        } catch (err) {
+          console.error('Error loading total carbon credits:', err);
+          marketStats.totalCredits = 0;
+        }
         
-        const totalVolume = await contract.getTotalVolume();
-        marketStats.totalVolume = Number(totalVolume);
+        try {
+          const totalVolume = await contract.getTotalVolume();
+          marketStats.totalVolume = Number(totalVolume);
+        } catch (err) {
+          console.error('Error loading total volume:', err);
+          marketStats.totalVolume = 0;
+        }
         
         // Set average price to current price for now
         marketStats.averagePrice = carbonCredits.price;
@@ -292,7 +312,8 @@
         creditsAvailable,
         creditsSold,
         isProvider,
-        reputation
+        reputation,
+        exists
       ] = await contract.getProfile(address);
       
       profile = {
@@ -302,7 +323,7 @@
         creditsSold: Number(creditsSold),
         isProvider,
         reputation: Number(reputation),
-        exists: name.length > 0
+        exists: exists
       };
       
       console.log('Profile loaded:', profile);
@@ -318,23 +339,30 @@
       providers = [];
       
       for (const address of providerAddresses) {
-        const [
-          name,
-          description,
-          creditsAvailable,
-          creditsSold,
-          isProvider,
-          reputation
-        ] = await contract.getProfile(address);
-        
-        providers.push({
-          address,
-          name,
-          description,
-          creditsAvailable: Number(creditsAvailable),
-          creditsSold: Number(creditsSold),
-          reputation: Number(reputation)
-        });
+        try {
+          const [
+            name,
+            description,
+            creditsAvailable,
+            creditsSold,
+            isProvider,
+            reputation,
+            exists
+          ] = await contract.getProfile(address);
+          
+          if (exists) {
+            providers.push({
+              address,
+              name,
+              description,
+              creditsAvailable: Number(creditsAvailable),
+              creditsSold: Number(creditsSold),
+              reputation: Number(reputation)
+            });
+          }
+        } catch (err) {
+          console.error(`Error loading provider profile for ${address}:`, err);
+        }
       }
       
       console.log('Providers loaded:', providers);
@@ -533,6 +561,20 @@
       error = '';
       txStatus = 'Creating profile...';
       
+      // Check if profile already exists
+      try {
+        const [name, , , , , , exists] = await contract.getProfile(selectedAccount);
+        if (exists) {
+          error = 'Profile already exists';
+          txStatus = '';
+          loading = false;
+          return;
+        }
+      } catch (err) {
+        // This is expected if profile doesn't exist yet
+        console.log('Profile does not exist yet, proceeding with creation');
+      }
+      
       const tx = await contract.createProfile(profileName, profileDescription, isProvider);
       txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
       
@@ -605,6 +647,30 @@
       txStatus = 'Processing purchase...';
 
       const totalCost = amountToBuy * carbonCredits.price;
+      
+      // Check if there are providers with available credits
+      const providerAddresses = await contract.getProviders();
+      let hasAvailableProvider = false;
+      
+      for (const address of providerAddresses) {
+        try {
+          const [, , creditsAvailable, , , , exists] = await contract.getProfile(address);
+          if (exists && Number(creditsAvailable) >= amountToBuy) {
+            hasAvailableProvider = true;
+            break;
+          }
+        } catch (err) {
+          console.error(`Error checking provider ${address}:`, err);
+        }
+      }
+      
+      if (!hasAvailableProvider) {
+        error = 'No providers with sufficient credits available';
+        txStatus = '';
+        loading = false;
+        return;
+      }
+
       const tx = await contract.buyCarbonCredits(amountToBuy, {
         value: ethers.parseEther(totalCost.toString())
       });
@@ -656,6 +722,19 @@
       loading = true;
       error = '';
       txStatus = 'Processing sale...';
+
+      // Double-check available credits before selling
+      try {
+        const availableCredits = await contract.getCarbonCredits();
+        if (Number(availableCredits) < amountToSell) {
+          error = 'Insufficient carbon credits to sell';
+          txStatus = '';
+          loading = false;
+          return;
+        }
+      } catch (err) {
+        console.error('Error checking available credits:', err);
+      }
 
       const tx = await contract.sellCarbonCredits(amountToSell);
       txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
