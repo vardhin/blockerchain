@@ -464,7 +464,9 @@
   
   async function loadProviders() {
     try {
+      console.log('Loading providers...');
       const providerAddresses = await contract.getProviders();
+      console.log('Provider addresses:', providerAddresses);
       providers = [];
       
       if (!providerAddresses || providerAddresses.length === 0) {
@@ -474,6 +476,7 @@
       
       for (const address of providerAddresses) {
         try {
+          console.log(`Loading profile for provider: ${address}`);
           const [
             name,
             description,
@@ -483,6 +486,17 @@
             reputation,
             exists
           ] = await contract.getProfile(address);
+          
+          console.log(`Provider profile data:`, {
+            address,
+            name,
+            description,
+            creditsAvailable: Number(creditsAvailable),
+            creditsSold: Number(creditsSold),
+            isProvider,
+            reputation: Number(reputation),
+            exists
+          });
           
           if (exists) {
             providers.push({
@@ -504,6 +518,7 @@
       // If we have providers but no selected provider, select the first one
       if (providers.length > 0 && !selectedProviderAddress) {
         selectedProviderAddress = providers[0].address;
+        console.log(`Auto-selected provider: ${selectedProviderAddress}`);
       }
     } catch (err) {
       console.error('Error loading providers:', err);
@@ -751,6 +766,8 @@
       
       // Update local profile
       await loadProfile(selectedAccount);
+      
+      await refreshProviders();
       
       txStatus = 'Profile successfully created!';
       setTimeout(() => txStatus = '', 5000);
@@ -1713,6 +1730,34 @@
   .provider-item.selected {
     border-color: #2563eb;
     background: #eff6ff;
+  }
+  
+  .provider-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  
+  .provider-name {
+    font-weight: 600;
+    color: #0f172a;
+  }
+  
+  .provider-reputation {
+    color: #8b5cf6;
+    font-weight: 500;
+  }
+  
+  .provider-description {
+    color: #64748b;
+    margin-bottom: 0.5rem;
+  }
+  
+  .provider-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: #64748b;
   }
   
   .select-provider-btn {
