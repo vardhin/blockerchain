@@ -25,6 +25,21 @@
     lastTransaction: null
   };
 
+  // Carbon credit related state
+  let carbonCredits = {
+    available: 0,
+    price: 0,
+    transactions: []
+  };
+  let amountToBuy = 0;
+  let amountToSell = 0;
+  let newPrice = 0;
+  let marketStats = {
+    totalVolume: 0,
+    averagePrice: 0,
+    totalCredits: 0
+  };
+
   // Update with your deployed contract address
   const CONTRACT_ADDRESS = '0xA88535C9C4F446857975fa18a154eD6AA57d98A1';
   const CONTRACT_ABI = [
@@ -59,6 +74,34 @@
     {
       "stateMutability": "payable",
       "type": "receive"
+    },
+    {
+      "inputs": [],
+      "name": "getCarbonCredits",
+      "outputs": [{"type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{"type": "uint256"}],
+      "name": "buyCarbonCredits",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"type": "uint256"}],
+      "name": "sellCarbonCredits",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"type": "uint256"}],
+      "name": "setCarbonCreditPrice",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     }
   ];
 
@@ -312,150 +355,266 @@
       loading = false;
     }
   }
+
+  async function buyCarbonCredits() {
+    if (!amountToBuy || amountToBuy <= 0) {
+      error = 'Please enter a valid amount to buy';
+      return;
+    }
+
+    try {
+      loading = true;
+      error = '';
+      txStatus = 'Processing purchase...';
+
+      const totalCost = amountToBuy * carbonCredits.price;
+      const tx = await contract.buyCarbonCredits(amountToBuy, {
+        value: ethers.parseEther(totalCost.toString())
+      });
+
+      txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+      await tx.wait();
+      
+      // Update local state
+      carbonCredits.available += amountToBuy;
+      carbonCredits.transactions.push({
+        type: 'buy',
+        amount: amountToBuy,
+        price: carbonCredits.price,
+        timestamp: new Date().toISOString()
+      });
+      
+      txStatus = 'Purchase successful!';
+      amountToBuy = 0;
+      setTimeout(() => txStatus = '', 5000);
+    } catch (err) {
+      error = 'Error buying carbon credits: ' + err.message;
+      console.error('Error buying carbon credits:', err);
+      txStatus = '';
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function sellCarbonCredits() {
+    if (!amountToSell || amountToSell <= 0) {
+      error = 'Please enter a valid amount to sell';
+      return;
+    }
+
+    if (amountToSell > carbonCredits.available) {
+      error = 'Insufficient carbon credits to sell';
+      return;
+    }
+
+    try {
+      loading = true;
+      error = '';
+      txStatus = 'Processing sale...';
+
+      const tx = await contract.sellCarbonCredits(amountToSell);
+      txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+      await tx.wait();
+      
+      // Update local state
+      carbonCredits.available -= amountToSell;
+      carbonCredits.transactions.push({
+        type: 'sell',
+        amount: amountToSell,
+        price: carbonCredits.price,
+        timestamp: new Date().toISOString()
+      });
+      
+      txStatus = 'Sale successful!';
+      amountToSell = 0;
+      setTimeout(() => txStatus = '', 5000);
+    } catch (err) {
+      error = 'Error selling carbon credits: ' + err.message;
+      console.error('Error selling carbon credits:', err);
+      txStatus = '';
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function updateCarbonCreditPrice() {
+    if (!newPrice || newPrice <= 0) {
+      error = 'Please enter a valid price';
+      return;
+    }
+
+    try {
+      loading = true;
+      error = '';
+      txStatus = 'Updating price...';
+
+      const tx = await contract.setCarbonCreditPrice(newPrice);
+      txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+      await tx.wait();
+      
+      carbonCredits.price = newPrice;
+      txStatus = 'Price updated successfully!';
+      newPrice = 0;
+      setTimeout(() => txStatus = '', 5000);
+    } catch (err) {
+      error = 'Error updating price: ' + err.message;
+      console.error('Error updating price:', err);
+      txStatus = '';
+    } finally {
+      loading = false;
+    }
+  }
 </script>
 
 <svelte:head>
-  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <main class="container">
-  <h1 class="title">BlockerChain DApp</h1>
-  
+  <header class="header">
+    <h1 class="title">Carbon Credit Exchange</h1>
+    <div class="market-stats">
+      <div class="stat-item">
+        <span class="stat-label">Total Volume</span>
+        <span class="stat-value">{marketStats.totalVolume} CC</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Average Price</span>
+        <span class="stat-value">{marketStats.averagePrice} ETH</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Total Credits</span>
+        <span class="stat-value">{marketStats.totalCredits} CC</span>
+      </div>
+    </div>
+  </header>
+
   {#if error}
-    <p class="error">{error}</p>
+    <div class="error-banner">{error}</div>
   {/if}
 
   {#if txStatus}
     <div class="tx-status">{txStatus}</div>
   {/if}
-  
+
   {#if accounts.length === 0}
-    <button class="connect-btn" on:click={connectWallet} disabled={loading}>
-      {loading ? 'Connecting...' : 'Connect Wallet'}
-    </button>
+    <div class="connect-section">
+      <h2>Welcome to Carbon Credit Exchange</h2>
+      <p>Connect your wallet to start trading carbon credits</p>
+      <button class="connect-btn" on:click={connectWallet} disabled={loading}>
+        {loading ? 'Connecting...' : 'Connect Wallet'}
+      </button>
+    </div>
   {:else}
-    <div class="debug-info card">
-      <h4 class="card-title">Debug Information</h4>
-      <div class="debug-grid">
-        <div class="debug-item">
-          <span class="debug-label">Network:</span>
-          <span class="debug-value">{debugInfo.network || 'Not connected'}</span>
+    <div class="dashboard">
+      <div class="wallet-info card">
+        <h3>Wallet Information</h3>
+        <div class="account-selector">
+          {#each accounts as account}
+            <button 
+              class:selected={account === selectedAccount}
+              on:click={() => switchAccount(account)}
+            >
+              {account.slice(0, 6)}...{account.slice(-4)}
+            </button>
+          {/each}
         </div>
-        <div class="debug-item">
-          <span class="debug-label">Chain ID:</span>
-          <span class="debug-value">{debugInfo.chainId || 'Not connected'}</span>
-        </div>
-        <div class="debug-item">
-          <span class="debug-label">Contract Address:</span>
-          <span class="debug-value">{debugInfo.contractAddress}</span>
-        </div>
-        <div class="debug-item">
-          <span class="debug-label">Contract Status:</span>
-          <span class="debug-value">{contractState.isInitialized ? 'Initialized' : 'Not initialized'}</span>
-        </div>
-        {#if debugInfo.lastError}
-          <div class="debug-item error">
-            <span class="debug-label">Last Error:</span>
-            <span class="debug-value">{debugInfo.lastError.message}</span>
-          </div>
-        {/if}
-        {#if debugInfo.lastTransaction}
-          <div class="debug-item">
-            <span class="debug-label">Last Transaction:</span>
-            <span class="debug-value">{debugInfo.lastTransaction.type} - {debugInfo.lastTransaction.hash.slice(0,10)}...</span>
-          </div>
-        {/if}
-      </div>
-    </div>
-
-    <div class="accounts card">
-      <h2 class="section-title">Available Accounts</h2>
-      {#each accounts as account}
-        <div class="account-item">
-          <button 
-            class:selected={account === selectedAccount}
-            on:click={() => switchAccount(account)}
-          >
-            {account.slice(0, 6)}...{account.slice(-4)}
-          </button>
-          {#await getBalance(account) then balance}
+        {#await getBalance(selectedAccount) then balance}
+          <div class="balance-info">
+            <span>Balance:</span>
             <span class="balance">{balance} ETH</span>
-          {/await}
-        </div>
-      {/each}
-    </div>
-
-    <div class="interaction">
-      <h3 class="selected-account">Selected Account: {selectedAccount.slice(0, 6)}...{selectedAccount.slice(-4)}</h3>
-      
-      <div class="contract-state card">
-        <h4 class="card-title">Contract State</h4>
-        <div class="state-info">
-          <div class="state-item">
-            <span class="state-label">Current Value:</span>
-            <span class="state-value">{contractState.value}</span>
           </div>
-          {#if contractState.lastUpdated}
-            <div class="state-item">
-              <span class="state-label">Last Updated:</span>
-              <span class="state-value">{new Date(contractState.lastUpdated).toLocaleString()}</span>
+        {/await}
+      </div>
+
+      <div class="trading-section">
+        <div class="market-info card">
+          <h3>Market Information</h3>
+          <div class="price-info">
+            <span>Current Price:</span>
+            <span class="price">{carbonCredits.price} ETH/CC</span>
+          </div>
+          <div class="credits-info">
+            <span>Your Credits:</span>
+            <span class="credits">{carbonCredits.available} CC</span>
+          </div>
+        </div>
+
+        <div class="trading-actions">
+          <div class="buy-section card">
+            <h3>Buy Carbon Credits</h3>
+            <div class="input-group">
+              <input 
+                type="number" 
+                bind:value={amountToBuy} 
+                placeholder="Amount to buy"
+                min="0"
+                step="1"
+              >
+              <button 
+                on:click={buyCarbonCredits} 
+                disabled={loading}
+                class="action-btn buy"
+              >
+                {loading ? 'Processing...' : 'Buy Credits'}
+              </button>
             </div>
-          {/if}
-        </div>
-      </div>
-
-      <div class="username-section card">
-        <h4 class="card-title">Set Username</h4>
-        <div class="input-group">
-          <input type="text" bind:value={username} class="input" placeholder="Enter username">
-          <button on:click={setUsername} disabled={loading} class="action-btn">
-            {loading ? 'Setting...' : 'Set Username'}
-          </button>
-        </div>
-      </div>
-
-      <div class="accounts card">
-        <h4 class="card-title">Usernames</h4>
-        {#each accounts as account}
-          <div class="account-item">
-            <span>{account.slice(0, 6)}...{account.slice(-4)}</span>
-            {#await loadUsername(account) then name}
-              <span class="username">{name || 'No username set'}</span>
-            {/await}
           </div>
-        {/each}
-      </div>
-      
-      <div class="contract-interaction card">
-        <h4 class="card-title">Contract Interaction</h4>
-        <div class="input-group">
-          <input type="number" bind:value class="input" placeholder="Enter value">
-          <div class="button-group">
-            <button on:click={setValue} disabled={loading} class="action-btn">Set Value</button>
-            <button on:click={getValue} disabled={loading} class="action-btn secondary">Get Value</button>
+
+          <div class="sell-section card">
+            <h3>Sell Carbon Credits</h3>
+            <div class="input-group">
+              <input 
+                type="number" 
+                bind:value={amountToSell} 
+                placeholder="Amount to sell"
+                min="0"
+                step="1"
+              >
+              <button 
+                on:click={sellCarbonCredits} 
+                disabled={loading}
+                class="action-btn sell"
+              >
+                {loading ? 'Processing...' : 'Sell Credits'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="send-eth card">
-        <h4 class="card-title">Send ETH</h4>
-        <input 
-          type="text" 
-          bind:value={friendAddress} 
-          placeholder="Enter friend's ETH address"
-          class="input"
-        >
-        <input 
-          type="number" 
-          bind:value={amountToSend} 
-          min="0" 
-          step="0.0001" 
-          placeholder="Amount in ETH"
-          class="input"
-        >
-        <button on:click={sendEth} disabled={loading} class="action-btn full-width">
-          {loading ? 'Sending...' : 'Send ETH'}
-        </button>
+        <div class="price-update card">
+          <h3>Update Market Price</h3>
+          <div class="input-group">
+            <input 
+              type="number" 
+              bind:value={newPrice} 
+              placeholder="New price in ETH"
+              min="0"
+              step="0.0001"
+            >
+            <button 
+              on:click={updateCarbonCreditPrice} 
+              disabled={loading}
+              class="action-btn update"
+            >
+              {loading ? 'Updating...' : 'Update Price'}
+            </button>
+          </div>
+        </div>
+
+        <div class="transactions card">
+          <h3>Recent Transactions</h3>
+          <div class="transaction-list">
+            {#each carbonCredits.transactions.slice(-5).reverse() as tx}
+              <div class="transaction-item">
+                <span class="tx-type {tx.type}">{tx.type}</span>
+                <span class="tx-amount">{tx.amount} CC</span>
+                <span class="tx-price">{tx.price} ETH</span>
+                <span class="tx-time">{new Date(tx.timestamp).toLocaleString()}</span>
+              </div>
+            {/each}
+          </div>
+        </div>
       </div>
     </div>
   {/if}
@@ -463,114 +622,177 @@
 
 <style>
   :global(body) {
-    background-color: #111827;
-    color: #e5e7eb;
+    background-color: #f8fafc;
+    color: #1e293b;
     margin: 0;
-    font-family: 'Quicksand', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   .container {
-    max-width: 800px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 2rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 3rem;
   }
 
   .title {
     font-size: 2.5rem;
     font-weight: 700;
-    color: #f3f4f6;
-    margin-bottom: 2rem;
-  }
-
-  .error {
-    background-color: rgba(220, 38, 38, 0.2);
-    color: #fca5a5;
-    padding: 1rem;
-    border-radius: 8px;
-    margin: 1rem 0;
-  }
-
-  .card {
-    background-color: #1f2937;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    color: #0f172a;
     margin-bottom: 1.5rem;
-    border: 1px solid #374151;
   }
 
-  .section-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #f3f4f6;
-    margin-bottom: 1rem;
+  .market-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 1rem;
   }
 
-  .card-title {
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+
+  .stat-value {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #f3f4f6;
-    margin-bottom: 1rem;
+    color: #0f172a;
   }
 
-  .account-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin: 0.75rem 0;
-  }
-
-  .account-item button {
-    padding: 0.5rem 1rem;
-    border: 1px solid #374151;
+  .error-banner {
+    background-color: #fee2e2;
+    color: #dc2626;
+    padding: 1rem;
     border-radius: 8px;
-    background: #2d3748;
-    color: #e5e7eb;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-    font-family: 'Quicksand', sans-serif;
+    margin-bottom: 1rem;
+    text-align: center;
   }
 
   .tx-status {
-    background-color: rgba(59, 130, 246, 0.2);
-    color: #93c5fd;
-    padding: 0.75rem;
+    background-color: #dbeafe;
+    color: #2563eb;
+    padding: 1rem;
     border-radius: 8px;
-    margin: 0.5rem 0;
+    margin-bottom: 1rem;
     text-align: center;
-    border-left: 4px solid #3b82f6;
-  }
-  
-  .account-item button:hover {
-    background: #374151;
   }
 
-  .account-item button.selected {
-    background: #4b5563;
-    border-color: #6b7280;
-    font-weight: 600;
+  .connect-section {
+    text-align: center;
+    padding: 4rem 2rem;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .connect-section h2 {
+    font-size: 2rem;
+    color: #0f172a;
+    margin-bottom: 1rem;
+  }
+
+  .connect-section p {
+    color: #64748b;
+    margin-bottom: 2rem;
+  }
+
+  .dashboard {
+    display: grid;
+    gap: 2rem;
+  }
+
+  .card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .card h3 {
+    font-size: 1.25rem;
+    color: #0f172a;
+    margin-bottom: 1.5rem;
+  }
+
+  .wallet-info {
+    margin-bottom: 2rem;
+  }
+
+  .account-selector {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .account-selector button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .account-selector button.selected {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+  }
+
+  .balance-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
   }
 
   .balance {
-    font-family: 'Quicksand', monospace;
-    color: #9ca3af;
-  }
-  
-  .username {
-    font-weight: 500;
-    color: #60a5fa;
-    padding-left: 0.5rem;
-  }
-  
-  .username-section {
-    margin-bottom: 1rem;
+    font-weight: 600;
+    color: #0f172a;
   }
 
-  .selected-account {
-    font-size: 1rem;
-    color: #9ca3af;
-    margin-bottom: 1rem;
+  .trading-section {
+    display: grid;
+    gap: 2rem;
+  }
+
+  .market-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .price-info, .credits-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .price, .credits {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .trading-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
   }
 
   .input-group {
@@ -579,147 +801,92 @@
     gap: 1rem;
   }
 
-  .button-group {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .input {
+  .input-group input {
     padding: 0.75rem;
-    border: 1px solid #374151;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: #2d3748;
-    color: #e5e7eb;
-    width: 100%;
     font-size: 1rem;
-    transition: border-color 0.2s ease;
-    font-family: 'Quicksand', sans-serif;
-  }
-
-  .input::placeholder {
-    color: #6b7280;
-  }
-
-  .input:focus {
-    outline: none;
-    border-color: #60a5fa;
-    background: #374151;
   }
 
   .action-btn {
     padding: 0.75rem 1.5rem;
     border: none;
     border-radius: 8px;
-    background: #3b82f6;
-    color: white;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    font-family: 'Quicksand', sans-serif;
+    transition: all 0.2s ease;
   }
 
-  .action-btn:hover {
+  .action-btn.buy {
+    background: #22c55e;
+    color: white;
+  }
+
+  .action-btn.sell {
+    background: #ef4444;
+    color: white;
+  }
+
+  .action-btn.update {
     background: #2563eb;
+    color: white;
   }
 
   .action-btn:disabled {
-    background: #4b5563;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 
-  .action-btn.secondary {
-    background: #374151;
-    color: #e5e7eb;
+  .transaction-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
-  .action-btn.secondary:hover {
-    background: #4b5563;
-  }
-
-  .connect-btn {
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
-    font-weight: 500;
-    background: #3b82f6;
-    color: white;
-    border: none;
+  .transaction-item {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8fafc;
     border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    font-family: 'Quicksand', sans-serif;
+    align-items: center;
   }
 
-  .connect-btn:hover {
-    background: #2563eb;
+  .tx-type {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
   }
 
-  .full-width {
-    width: 100%;
+  .tx-type.buy {
+    background: #dcfce7;
+    color: #166534;
   }
 
-  @media (max-width: 640px) {
+  .tx-type.sell {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  @media (max-width: 768px) {
     .container {
       padding: 1rem;
     }
 
-    .button-group {
+    .market-stats {
       flex-direction: column;
+      gap: 1rem;
     }
-  }
 
-  .debug-info {
-    margin-bottom: 1.5rem;
-  }
+    .trading-actions {
+      grid-template-columns: 1fr;
+    }
 
-  .debug-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-  }
-
-  .debug-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .debug-label {
-    font-size: 0.875rem;
-    color: #9ca3af;
-  }
-
-  .debug-value {
-    font-family: monospace;
-    color: #e5e7eb;
-    word-break: break-all;
-  }
-
-  .debug-item.error .debug-value {
-    color: #fca5a5;
-  }
-
-  .contract-state {
-    margin-bottom: 1.5rem;
-  }
-
-  .state-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .state-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .state-label {
-    color: #9ca3af;
-  }
-
-  .state-value {
-    font-weight: 500;
-    color: #e5e7eb;
+    .transaction-item {
+      grid-template-columns: 1fr;
+      text-align: center;
+    }
   }
 </style>
