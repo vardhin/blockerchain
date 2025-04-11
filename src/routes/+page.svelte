@@ -174,6 +174,86 @@
       });
     }
   });
+
+  async function switchAccount(account) {
+    selectedAccount = account;
+    await initializeContract();
+    await loadInitialData();
+  }
+
+  async function getBalance(address) {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const balance = await provider.getBalance(address);
+      return ethers.formatEther(balance);
+    } catch (err) {
+      console.error('Error getting balance:', err);
+      return '0';
+    }
+  }
+
+  async function getValue() {
+    try {
+      if (!contract) return;
+      const result = await contract.retrieve();
+      value = Number(result);
+    } catch (err) {
+      error = 'Error getting value: ' + err.message;
+      console.error('Error getting value:', err);
+    }
+  }
+
+  async function loadUsername(address) {
+    try {
+      if (!contract) return '';
+      const name = await contract.getUsername(address);
+      usernames[address] = name;
+      return name;
+    } catch (err) {
+      console.error('Error loading username:', err);
+      return '';
+    }
+  }
+
+  async function sendEth() {
+    if (!friendAddress || !amountToSend) {
+      error = 'Please enter both address and amount';
+      return;
+    }
+
+    try {
+      loading = true;
+      error = '';
+      txStatus = 'Sending ETH...';
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner(selectedAccount);
+      
+      const tx = await signer.sendTransaction({
+        to: friendAddress,
+        value: ethers.parseEther(amountToSend.toString())
+      });
+
+      txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+      
+      // Wait for confirmation
+      txStatus = 'Waiting for confirmation...';
+      await tx.wait();
+      txStatus = 'ETH successfully sent!';
+      
+      // Reset form
+      friendAddress = '';
+      amountToSend = 0;
+      
+      setTimeout(() => txStatus = '', 5000);
+    } catch (err) {
+      error = 'Error sending ETH: ' + err.message;
+      console.error('Error sending ETH:', err);
+      txStatus = '';
+    } finally {
+      loading = false;
+    }
+  }
 </script>
 
 <svelte:head>
