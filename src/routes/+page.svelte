@@ -57,6 +57,11 @@
   let providers = [];
   let selectedProvider = null;
 
+  // Add this to the script section, after the other state variables
+  let selectedProviderAddress = '';
+  let amountToTradeWithProvider = 0;
+  let tradeType = 'buy'; // 'buy' or 'sell'
+
   // Update with your deployed contract address
   const CONTRACT_ADDRESS = '0x45a2B04e891A05abE9295EDA632B43c02c68f06D';
   const CONTRACT_ABI = [
@@ -495,6 +500,11 @@
       }
       
       console.log('Providers loaded:', providers);
+      
+      // If we have providers but no selected provider, select the first one
+      if (providers.length > 0 && !selectedProviderAddress) {
+        selectedProviderAddress = providers[0].address;
+      }
     } catch (err) {
       console.error('Error loading providers:', err);
       providers = [];
@@ -976,9 +986,92 @@
     }
   }
 
+  async function tradeWithProvider() {
+    if (!selectedProviderAddress) {
+      error = 'Please select a provider first';
+      return;
+    }
+    
+    if (!amountToTradeWithProvider || amountToTradeWithProvider <= 0) {
+      error = 'Please enter a valid amount to trade';
+      return;
+    }
+    
+    try {
+      loading = true;
+      error = '';
+      
+      if (tradeType === 'buy') {
+        txStatus = 'Processing purchase from provider...';
+        
+        // Calculate total cost
+        const totalCost = amountToTradeWithProvider * carbonCredits.price;
+        
+        // Execute the buy transaction
+        const tx = await contract.buyCarbonCredits(amountToTradeWithProvider, {
+          value: ethers.parseEther(totalCost.toString()),
+          gasLimit: 500000
+        });
+        
+        txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+        await tx.wait();
+        
+        // Update local state
+        carbonCredits.available += amountToTradeWithProvider;
+        carbonCredits.transactions.push({
+          type: 'buy',
+          amount: amountToTradeWithProvider,
+          price: carbonCredits.price,
+          timestamp: new Date().toISOString()
+        });
+        
+        txStatus = 'Purchase successful!';
+      } else {
+        txStatus = 'Processing sale to provider...';
+        
+        // Execute the sell transaction
+        const tx = await contract.sellCarbonCredits(amountToTradeWithProvider, {
+          gasLimit: 500000
+        });
+        
+        txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+        await tx.wait();
+        
+        // Update local state
+        carbonCredits.available -= amountToTradeWithProvider;
+        carbonCredits.transactions.push({
+          type: 'sell',
+          amount: amountToTradeWithProvider,
+          price: carbonCredits.price,
+          timestamp: new Date().toISOString()
+        });
+        
+        txStatus = 'Sale successful!';
+      }
+      
+      // Refresh market stats and providers
+      await loadInitialData();
+      
+      // Reset form
+      amountToTradeWithProvider = 0;
+      setTimeout(() => txStatus = '', 5000);
+    } catch (err) {
+      error = `Error ${tradeType === 'buy' ? 'buying' : 'selling'} with provider: ${err.message}`;
+      console.error(`Error ${tradeType === 'buy' ? 'buying' : 'selling'} with provider:`, err);
+      txStatus = '';
+    } finally {
+      loading = false;
+    }
+  }
+
   // Add this function to calculate the total cost
   $: totalBuyCost = amountToBuy ? (amountToBuy * carbonCredits.price).toFixed(4) : '0.0000';
   $: totalSellValue = amountToSell ? (amountToSell * carbonCredits.price).toFixed(4) : '0.0000';
+
+  // Add this to the reactive statements section
+  $: selectedProvider = providers.find(p => p.address === selectedProviderAddress) || null;
+  $: totalTradeCost = selectedProvider && amountToTradeWithProvider ? 
+    (amountToTradeWithProvider * carbonCredits.price).toFixed(4) : '0.0000';
 </script>
 
 <svelte:head>
@@ -1212,7 +1305,7 @@
             <h3>Carbon Credit Providers</h3>
             <div class="provider-list">
               {#each providers as provider}
-                <div class="provider-item">
+                <div class="provider-item" class:selected={provider.address === selectedProviderAddress}>
                   <div class="provider-header">
                     <span class="provider-name">{provider.name}</span>
                     <span class="provider-reputation">Rep: {provider.reputation}</span>
@@ -1222,9 +1315,58 @@
                     <span>Available: {provider.creditsAvailable} CC</span>
                     <span>Sold: {provider.creditsSold} CC</span>
                   </div>
+                  <button 
+                    class="select-provider-btn" 
+                    on:click={() => selectedProviderAddress = provider.address}
+                    class:selected={provider.address === selectedProviderAddress}
+                  >
+                    {provider.address === selectedProviderAddress ? 'Selected' : 'Select Provider'}
+                  </button>
                 </div>
               {/each}
             </div>
+            
+            {#if selectedProvider}
+              <div class="trade-with-provider">
+                <h4>Trade with {selectedProvider.name}</h4>
+                <div class="trade-options">
+                  <div class="trade-type-selector">
+                    <button 
+                      class:active={tradeType === 'buy'} 
+                      on:click={() => tradeType = 'buy'}
+                    >
+                      Buy
+                    </button>
+                    <button 
+                      class:active={tradeType === 'sell'} 
+                      on:click={() => tradeType = 'sell'}
+                    >
+                      Sell
+                    </button>
+                  </div>
+                  <div class="input-group">
+                    <input 
+                      type="number" 
+                      bind:value={amountToTradeWithProvider} 
+                      placeholder={`Amount to ${tradeType}`}
+                      min="0"
+                      step="1"
+                    >
+                    <div class="cost-info">
+                      <span>Total {tradeType === 'buy' ? 'Cost' : 'Value'}:</span>
+                      <span class="cost-value">{totalTradeCost} ETH</span>
+                    </div>
+                    <button 
+                      on:click={tradeWithProvider} 
+                      disabled={loading || !selectedProvider}
+                      class="action-btn {tradeType === 'buy' ? 'buy' : 'sell'}"
+                    >
+                      {loading ? 'Processing...' : `${tradeType === 'buy' ? 'Buy' : 'Sell'} with Provider`}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            {/if}
           </div>
 
           <div class="transactions card">
@@ -1564,34 +1706,67 @@
     padding: 1rem;
     background: #f8fafc;
     border-radius: 8px;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
   }
-
-  .provider-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
+  
+  .provider-item.selected {
+    border-color: #2563eb;
+    background: #eff6ff;
   }
-
-  .provider-name {
-    font-weight: 600;
+  
+  .select-provider-btn {
+    margin-top: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #e2e8f0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+  }
+  
+  .select-provider-btn.selected {
+    background: #2563eb;
+    color: white;
+  }
+  
+  .trade-with-provider {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+  }
+  
+  .trade-with-provider h4 {
+    margin-bottom: 1rem;
     color: #0f172a;
   }
-
-  .provider-reputation {
-    color: #8b5cf6;
-    font-weight: 500;
-  }
-
-  .provider-description {
-    color: #64748b;
-    margin-bottom: 0.5rem;
-  }
-
-  .provider-stats {
+  
+  .trade-options {
     display: flex;
-    justify-content: space-between;
-    font-size: 0.875rem;
-    color: #64748b;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .trade-type-selector {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .trade-type-selector button {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .trade-type-selector button.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
   }
 
   @media (max-width: 768px) {
