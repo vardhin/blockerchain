@@ -102,6 +102,27 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getCarbonCreditPrice",
+      "outputs": [{"type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getTotalCarbonCredits",
+      "outputs": [{"type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getTotalVolume",
+      "outputs": [{"type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
     }
   ];
 
@@ -172,8 +193,32 @@
   
   async function loadInitialData() {
     if (contract && selectedAccount) {
-      await getValue();
-      await loadUsernames();
+      try {
+        // Load carbon credit data
+        const credits = await contract.getCarbonCredits();
+        carbonCredits.available = Number(credits);
+        
+        const price = await contract.getCarbonCreditPrice();
+        carbonCredits.price = Number(ethers.formatEther(price));
+        
+        const totalCredits = await contract.getTotalCarbonCredits();
+        marketStats.totalCredits = Number(totalCredits);
+        
+        const totalVolume = await contract.getTotalVolume();
+        marketStats.totalVolume = Number(totalVolume);
+        
+        // Set average price to current price for now
+        marketStats.averagePrice = carbonCredits.price;
+        
+        console.log('Carbon credit data loaded:', {
+          available: carbonCredits.available,
+          price: carbonCredits.price,
+          totalCredits: marketStats.totalCredits,
+          totalVolume: marketStats.totalVolume
+        });
+      } catch (err) {
+        console.error('Error loading carbon credit data:', err);
+      }
     }
   }
   
@@ -384,6 +429,9 @@
         timestamp: new Date().toISOString()
       });
       
+      // Refresh market stats
+      await loadInitialData();
+      
       txStatus = 'Purchase successful!';
       amountToBuy = 0;
       setTimeout(() => txStatus = '', 5000);
@@ -425,6 +473,9 @@
         timestamp: new Date().toISOString()
       });
       
+      // Refresh market stats
+      await loadInitialData();
+      
       txStatus = 'Sale successful!';
       amountToSell = 0;
       setTimeout(() => txStatus = '', 5000);
@@ -448,11 +499,13 @@
       error = '';
       txStatus = 'Updating price...';
 
-      const tx = await contract.setCarbonCreditPrice(newPrice);
+      const tx = await contract.setCarbonCreditPrice(ethers.parseEther(newPrice.toString()));
       txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
       await tx.wait();
       
+      // Update local state
       carbonCredits.price = newPrice;
+      marketStats.averagePrice = newPrice;
       txStatus = 'Price updated successfully!';
       newPrice = 0;
       setTimeout(() => txStatus = '', 5000);
@@ -464,6 +517,10 @@
       loading = false;
     }
   }
+
+  // Add this function to calculate the total cost
+  $: totalBuyCost = amountToBuy ? (amountToBuy * carbonCredits.price).toFixed(4) : '0.0000';
+  $: totalSellValue = amountToSell ? (amountToSell * carbonCredits.price).toFixed(4) : '0.0000';
 </script>
 
 <svelte:head>
@@ -551,6 +608,10 @@
                 min="0"
                 step="1"
               >
+              <div class="cost-info">
+                <span>Total Cost:</span>
+                <span class="cost-value">{totalBuyCost} ETH</span>
+              </div>
               <button 
                 on:click={buyCarbonCredits} 
                 disabled={loading}
@@ -571,6 +632,10 @@
                 min="0"
                 step="1"
               >
+              <div class="cost-info">
+                <span>Total Value:</span>
+                <span class="cost-value">{totalSellValue} ETH</span>
+              </div>
               <button 
                 on:click={sellCarbonCredits} 
                 disabled={loading}
@@ -868,6 +933,20 @@
   .tx-type.sell {
     background: #fee2e2;
     color: #991b1b;
+  }
+
+  .cost-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    color: #64748b;
+  }
+
+  .cost-value {
+    font-weight: 600;
+    color: #0f172a;
   }
 
   @media (max-width: 768px) {
