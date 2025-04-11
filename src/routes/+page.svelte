@@ -12,6 +12,18 @@
   let amountToSend = 0;
   let username = '';
   let usernames = {};
+  let contractState = {
+    value: 0,
+    lastUpdated: null,
+    isInitialized: false
+  };
+  let debugInfo = {
+    network: '',
+    chainId: '',
+    contractAddress: '',
+    lastError: null,
+    lastTransaction: null
+  };
 
   // Update with your deployed contract address
   const CONTRACT_ADDRESS = '0xA88535C9C4F446857975fa18a154eD6AA57d98A1';
@@ -55,10 +67,11 @@
       try {
         loading = true;
         error = '';
+        console.log('Attempting to connect wallet...');
         
         // Request accounts
         accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts'  // Changed from wallet_requestPermissions
+          method: 'eth_requestAccounts'
         });
         
         console.log('Connected accounts:', accounts);
@@ -66,6 +79,13 @@
         if (!selectedAccount && accounts.length > 0) {
           selectedAccount = accounts[0];
         }
+
+        // Get network information
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const network = await provider.getNetwork();
+        debugInfo.network = network.name;
+        debugInfo.chainId = network.chainId.toString();
+        console.log('Connected to network:', network);
         
         // Initialize contract
         await initializeContract();
@@ -75,22 +95,34 @@
         
       } catch (err) {
         error = 'Error connecting wallet: ' + err.message;
+        debugInfo.lastError = {
+          message: err.message,
+          timestamp: new Date().toISOString()
+        };
         console.error('Error connecting wallet:', err);
       } finally {
         loading = false;
       }
     } else {
       error = 'Please install MetaMask!';
+      console.error('MetaMask not detected');
     }
   }
 
   async function initializeContract() {
     try {
+      console.log('Initializing contract...');
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner(selectedAccount);
       contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      contractState.isInitialized = true;
+      console.log('Contract initialized successfully');
     } catch (err) {
       error = 'Failed to initialize contract: ' + err.message;
+      debugInfo.lastError = {
+        message: err.message,
+        timestamp: new Date().toISOString()
+      };
       console.error('Contract initialization error:', err);
     }
   }
@@ -115,18 +147,33 @@
       loading = true;
       error = '';
       txStatus = 'Sending transaction...';
+      console.log('Setting value:', value);
       
       const tx = await contract.store(value);
+      debugInfo.lastTransaction = {
+        type: 'store',
+        hash: tx.hash,
+        value: value,
+        timestamp: new Date().toISOString()
+      };
+      console.log('Transaction sent:', tx.hash);
+      
       txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
       
       // Wait for confirmation
       txStatus = 'Waiting for confirmation...';
-      await tx.wait();
+      const receipt = await tx.wait();
+      console.log('Transaction confirmed:', receipt);
+      
       txStatus = 'Value successfully stored!';
       await getValue();
       setTimeout(() => txStatus = '', 5000);
     } catch (err) {
       error = 'Error setting value: ' + err.message;
+      debugInfo.lastError = {
+        message: err.message,
+        timestamp: new Date().toISOString()
+      };
       console.error('Error setting value:', err);
       txStatus = '';
     } finally {
@@ -194,11 +241,22 @@
 
   async function getValue() {
     try {
-      if (!contract) return;
+      if (!contract) {
+        console.warn('Contract not initialized');
+        return;
+      }
+      console.log('Retrieving value...');
       const result = await contract.retrieve();
       value = Number(result);
+      contractState.value = value;
+      contractState.lastUpdated = new Date().toISOString();
+      console.log('Retrieved value:', value);
     } catch (err) {
       error = 'Error getting value: ' + err.message;
+      debugInfo.lastError = {
+        message: err.message,
+        timestamp: new Date().toISOString()
+      };
       console.error('Error getting value:', err);
     }
   }
@@ -276,6 +334,40 @@
       {loading ? 'Connecting...' : 'Connect Wallet'}
     </button>
   {:else}
+    <div class="debug-info card">
+      <h4 class="card-title">Debug Information</h4>
+      <div class="debug-grid">
+        <div class="debug-item">
+          <span class="debug-label">Network:</span>
+          <span class="debug-value">{debugInfo.network || 'Not connected'}</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">Chain ID:</span>
+          <span class="debug-value">{debugInfo.chainId || 'Not connected'}</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">Contract Address:</span>
+          <span class="debug-value">{debugInfo.contractAddress}</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">Contract Status:</span>
+          <span class="debug-value">{contractState.isInitialized ? 'Initialized' : 'Not initialized'}</span>
+        </div>
+        {#if debugInfo.lastError}
+          <div class="debug-item error">
+            <span class="debug-label">Last Error:</span>
+            <span class="debug-value">{debugInfo.lastError.message}</span>
+          </div>
+        {/if}
+        {#if debugInfo.lastTransaction}
+          <div class="debug-item">
+            <span class="debug-label">Last Transaction:</span>
+            <span class="debug-value">{debugInfo.lastTransaction.type} - {debugInfo.lastTransaction.hash.slice(0,10)}...</span>
+          </div>
+        {/if}
+      </div>
+    </div>
+
     <div class="accounts card">
       <h2 class="section-title">Available Accounts</h2>
       {#each accounts as account}
@@ -296,6 +388,22 @@
     <div class="interaction">
       <h3 class="selected-account">Selected Account: {selectedAccount.slice(0, 6)}...{selectedAccount.slice(-4)}</h3>
       
+      <div class="contract-state card">
+        <h4 class="card-title">Contract State</h4>
+        <div class="state-info">
+          <div class="state-item">
+            <span class="state-label">Current Value:</span>
+            <span class="state-value">{contractState.value}</span>
+          </div>
+          {#if contractState.lastUpdated}
+            <div class="state-item">
+              <span class="state-label">Last Updated:</span>
+              <span class="state-value">{new Date(contractState.lastUpdated).toLocaleString()}</span>
+            </div>
+          {/if}
+        </div>
+      </div>
+
       <div class="username-section card">
         <h4 class="card-title">Set Username</h4>
         <div class="input-group">
@@ -557,5 +665,61 @@
     .button-group {
       flex-direction: column;
     }
+  }
+
+  .debug-info {
+    margin-bottom: 1.5rem;
+  }
+
+  .debug-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .debug-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .debug-label {
+    font-size: 0.875rem;
+    color: #9ca3af;
+  }
+
+  .debug-value {
+    font-family: monospace;
+    color: #e5e7eb;
+    word-break: break-all;
+  }
+
+  .debug-item.error .debug-value {
+    color: #fca5a5;
+  }
+
+  .contract-state {
+    margin-bottom: 1.5rem;
+  }
+
+  .state-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .state-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .state-label {
+    color: #9ca3af;
+  }
+
+  .state-value {
+    font-weight: 500;
+    color: #e5e7eb;
   }
 </style>
