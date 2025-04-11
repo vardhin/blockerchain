@@ -250,7 +250,29 @@
   async function loadInitialData() {
     if (contract && selectedAccount) {
       try {
-        // Load carbon credit data
+        // First check if profile exists
+        let profileExists = false;
+        try {
+          const [, , , , , , exists] = await contract.getProfile(selectedAccount);
+          profileExists = exists;
+        } catch (err) {
+          console.log('Profile does not exist yet');
+          profileExists = false;
+        }
+
+        if (!profileExists) {
+          // Reset all values if no profile exists
+          carbonCredits.available = 0;
+          carbonCredits.price = 0;
+          marketStats.totalCredits = 0;
+          marketStats.totalVolume = 0;
+          marketStats.averagePrice = 0;
+          profile.exists = false;
+          providers = [];
+          return;
+        }
+
+        // Load carbon credit data only if profile exists
         try {
           const credits = await contract.getCarbonCredits();
           carbonCredits.available = Number(credits);
@@ -329,7 +351,16 @@
       console.log('Profile loaded:', profile);
     } catch (err) {
       console.error('Error loading profile:', err);
-      profile.exists = false;
+      // Reset profile to default state
+      profile = {
+        name: '',
+        description: '',
+        creditsAvailable: 0,
+        creditsSold: 0,
+        isProvider: false,
+        reputation: 0,
+        exists: false
+      };
     }
   }
   
@@ -337,6 +368,11 @@
     try {
       const providerAddresses = await contract.getProviders();
       providers = [];
+      
+      if (!providerAddresses || providerAddresses.length === 0) {
+        console.log('No providers found');
+        return;
+      }
       
       for (const address of providerAddresses) {
         try {
@@ -368,6 +404,7 @@
       console.log('Providers loaded:', providers);
     } catch (err) {
       console.error('Error loading providers:', err);
+      providers = [];
     }
   }
   
