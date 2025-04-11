@@ -1,1 +1,13 @@
-Error buying carbon credits: missing revert data (action="estimateGas", data=null, reason=null, transaction={ "data": "0xc5666a050000000000000000000000000000000000000000000000000000000000000003", "from": "0xa576292FA67EaB9eD6b96eB8E97FD6030E89EA12", "to": "0xA88535C9C4F446857975fa18a154eD6AA57d98A1" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.13.5)
+❯ npx hardhat compile
+TypeError: Member "length" not found or not visible after argument-dependent lookup in string storage ref.
+   --> contracts/BlockerChain.sol:128:17:
+    |
+128 |         require(carbonProfiles[msg.sender].name.length > 0, "Buyer must have a profile");
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+Error HH600: Compilation failed
+
+For more info go to https://hardhat.org/HH600 or run Hardhat with --show-stack-traces
+
+Error creating profile: missing revert data (action="estimateGas", data=null, reason=null, transaction={ "data": "0xaecdd523000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000004736574680000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000167468697320697320612074657374206163636f756e7400000000000000000000", "from": "0xa576292FA67EaB9eD6b96eB8E97FD6030E89EA12", "to": "0xA88535C9C4F446857975fa18a154eD6AA57d98A1" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.13.5)
