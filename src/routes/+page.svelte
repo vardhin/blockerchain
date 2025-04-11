@@ -58,7 +58,7 @@
   let selectedProvider = null;
 
   // Update with your deployed contract address
-  const CONTRACT_ADDRESS = '0xA88535C9C4F446857975fa18a154eD6AA57d98A1';
+  const CONTRACT_ADDRESS = '0x21c2e9e641B3c1B23ce282E47688A839F3Db2D82';
   const CONTRACT_ABI = [
     {
       "inputs": [],

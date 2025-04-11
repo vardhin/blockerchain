@@ -10,45 +10,50 @@ Array [ "0xa576292fa67eab9ed6b96eb8e97fd6030e89ea12" ]
 Connected to network: 
 Object {  }
 +page.svelte:208:16
-Initializing contract... +page.svelte:273:14
-Contract initialized successfully +page.svelte:291:14
+Current network: 
+Object {  }
++page.svelte:280:14
+Contract initialized successfully +page.svelte:334:14
+Creating profile with params: 
+Object { name: "v", description: "v", isProvider: false }
++page.svelte:709:14
+Current network: 
+Object {  }
++page.svelte:718:14
+Contract code exists: true +page.svelte:722:14
+Profile loaded: 
+Object { name: "v", description: "v", creditsAvailable: 0, creditsSold: 0, isProvider: false, reputation: 100, exists: undefined }
++page.svelte:444:14
+Creating profile with params: 
+Object { name: "vp", description: "vp", isProvider: true }
++page.svelte:709:14
+Current network: 
+Object {  }
++page.svelte:718:14
+Contract code exists: true +page.svelte:722:14
 MetaMask - RPC Error: Internal JSON-RPC error. 
-Object { code: -32603, message: "Internal JSON-RPC error.", data: {…}, stack: "Error@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/scripts/runtime-lavamoat.js:9362:17\no@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:596656\na@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:599747\ninternal@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:600357\nc@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:568382\ns.createFetchMiddleware/<@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:569385\n" }
+Object { code: -32603, message: "Internal JSON-RPC error.", stack: "Error@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/scripts/runtime-lavamoat.js:9362:17\no@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:596656\na@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:599747\ninternal@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:600357\nprocessApproval@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-3.js:1:518075\n" }
 localhost:5173:1:91765
-Profile does not exist yet +page.svelte:311:18
-MetaMask - RPC Error: Internal JSON-RPC error. 
-Object { code: -32603, message: "Internal JSON-RPC error.", data: {…}, stack: "Error@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/scripts/runtime-lavamoat.js:9362:17\no@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:596656\na@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:599747\ninternal@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:600357\nc@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:568382\ns.createFetchMiddleware/<@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:569385\n" }
-localhost:5173:1:91765
-Profile does not exist yet, proceeding with creation +page.svelte:664:16
-MetaMask - RPC Error: Internal JSON-RPC error. 
-Object { code: -32603, message: "Internal JSON-RPC error.", data: {…}, stack: "Error@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/scripts/runtime-lavamoat.js:9362:17\no@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:596656\na@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:599747\ninternal@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:600357\nc@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:568382\ns.createFetchMiddleware/<@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:569385\n" }
-localhost:5173:1:91765
-Error creating profile: Error: missing revert data (action="estimateGas", data=null, reason=null, transaction={ "data": "0xaecdd523000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001760000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000017600000000000000000000000000000000000000000000000000000000000000", "from": "0xa576292FA67EaB9eD6b96eB8E97FD6030E89EA12", "to": "0xA88535C9C4F446857975fa18a154eD6AA57d98A1" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.13.5)
+Error creating profile: Error: could not coalesce error (error={ "code": -32603, "message": "Internal JSON-RPC error." }, payload={ "id": 22, "jsonrpc": "2.0", "method": "eth_sendTransaction", "params": [ { "data": "0xaecdd523000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002767000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000027670000000000000000000000000000000000000000000000000000000000000", "from": "0xa576292fa67eab9ed6b96eb8e97fd6030e89ea12", "gas": "0x7a120", "to": "0x21c2e9e641b3c1b23ce282e47688a839f3db2d82" } ] }, code=UNKNOWN_ERROR, version=6.13.5)
     makeError errors.ts:694
-    getBuiltinCallException abi-coder.ts:118
-    getBuiltinCallException abi-coder.ts:235
-    getRpcError provider-jsonrpc.ts:989
+    getRpcError provider-jsonrpc.ts:1059
     getRpcError provider-browser.ts:122
     scheduleDrain_fn provider-jsonrpc.ts:563
     scheduleDrain_fn provider-jsonrpc.ts:579
     setTimeout handler*scheduleDrain_fn provider-jsonrpc.ts:510
     send provider-jsonrpc.ts:1093
     send provider-browser.ts:90
-    _perform provider-jsonrpc.ts:674
-    perform_fn abstract-provider.ts:560
-    estimateGas abstract-provider.ts:970
-    sendUncheckedTransaction provider-jsonrpc.ts:333
-    sendUncheckedTransaction provider-jsonrpc.ts:334
+    sendUncheckedTransaction provider-jsonrpc.ts:350
     sendTransaction provider-jsonrpc.ts:358
     send contract.ts:313
     method contract.ts:352
-    createProfile +page.svelte:667
+    createProfile +page.svelte:725
     target_handler events.js:66
     without_reactive_context shared.js:44
     target_handler events.js:65
     create_event events.js:84
     event events.js:118
-    consequent_3 +page.svelte:1345
+    consequent_3 +page.svelte:1427
     consequent_effect if.js:91
     update_reaction runtime.js:412
     update_effect runtime.js:568
@@ -56,14 +61,14 @@ Error creating profile: Error: missing revert data (action="estimateGas", data=n
     branch effects.js:360
     update_branch if.js:91
     set_branch if.js:45
-    alternate +page.svelte:952
+    alternate +page.svelte:1026
     if_block if.js:121
     update_reaction runtime.js:412
     update_effect runtime.js:568
     create_effect effects.js:118
     block effects.js:352
     if_block if.js:119
-    alternate +page.svelte:1440
+    alternate +page.svelte:1522
     alternate_effect if.js:103
     update_reaction runtime.js:412
     update_effect runtime.js:568
@@ -71,73 +76,12 @@ Error creating profile: Error: missing revert data (action="estimateGas", data=n
     branch effects.js:360
     update_branch if.js:103
     set_branch if.js:45
-    _page +page.svelte:922
+    _page +page.svelte:996
     if_block if.js:121
     update_reaction runtime.js:412
     update_effect runtime.js:568
     process_effects runtime.js:777
-+page.svelte:681:14
-MetaMask - RPC Error: Internal JSON-RPC error. 
-Object { code: -32603, message: "Internal JSON-RPC error.", data: {…}, stack: "Error@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/scripts/runtime-lavamoat.js:9362:17\no@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:596656\na@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:599747\ninternal@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:600357\nc@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:568382\ns.createFetchMiddleware/<@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:569385\n" }
-localhost:5173:1:91765
-Profile does not exist yet, proceeding with creation +page.svelte:664:16
-MetaMask - RPC Error: Internal JSON-RPC error. 
-Object { code: -32603, message: "Internal JSON-RPC error.", data: {…}, stack: "Error@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/scripts/runtime-lavamoat.js:9362:17\no@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:596656\na@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:599747\ninternal@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:600357\nc@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:568382\ns.createFetchMiddleware/<@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:569385\n" }
-localhost:5173:1:91765
-Error creating profile: Error: missing revert data (action="estimateGas", data=null, reason=null, transaction={ "data": "0xaecdd523000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001760000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000017600000000000000000000000000000000000000000000000000000000000000", "from": "0xa576292FA67EaB9eD6b96eB8E97FD6030E89EA12", "to": "0xA88535C9C4F446857975fa18a154eD6AA57d98A1" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.13.5)
-    makeError errors.ts:694
-    getBuiltinCallException abi-coder.ts:118
-    getBuiltinCallException abi-coder.ts:235
-    getRpcError provider-jsonrpc.ts:989
-    getRpcError provider-browser.ts:122
-    scheduleDrain_fn provider-jsonrpc.ts:563
-    scheduleDrain_fn provider-jsonrpc.ts:579
-    setTimeout handler*scheduleDrain_fn provider-jsonrpc.ts:510
-    send provider-jsonrpc.ts:1093
-    send provider-browser.ts:90
-    _perform provider-jsonrpc.ts:674
-    perform_fn abstract-provider.ts:560
-    estimateGas abstract-provider.ts:970
-    sendUncheckedTransaction provider-jsonrpc.ts:333
-    sendUncheckedTransaction provider-jsonrpc.ts:334
-    sendTransaction provider-jsonrpc.ts:358
-    send contract.ts:313
-    method contract.ts:352
-    createProfile +page.svelte:667
-    target_handler events.js:66
-    without_reactive_context shared.js:44
-    target_handler events.js:65
-    create_event events.js:84
-    event events.js:118
-    consequent_3 +page.svelte:1345
-    consequent_effect if.js:91
-    update_reaction runtime.js:412
-    update_effect runtime.js:568
-    create_effect effects.js:118
-    branch effects.js:360
-    update_branch if.js:91
-    set_branch if.js:45
-    alternate +page.svelte:952
-    if_block if.js:121
-    update_reaction runtime.js:412
-    update_effect runtime.js:568
-    create_effect effects.js:118
-    block effects.js:352
-    if_block if.js:119
-    alternate +page.svelte:1440
-    alternate_effect if.js:103
-    update_reaction runtime.js:412
-    update_effect runtime.js:568
-    create_effect effects.js:118
-    branch effects.js:360
-    update_branch if.js:103
-    set_branch if.js:45
-    _page +page.svelte:922
-    if_block if.js:121
-    update_reaction runtime.js:412
-    update_effect runtime.js:568
-    process_effects runtime.js:777
-+page.svelte:681:14
++page.svelte:745:14
 
 ​
 
