@@ -207,6 +207,45 @@
         debugInfo.chainId = network.chainId.toString();
         console.log('Connected to network:', network);
         
+        // Check if we're on the correct network (Ganache)
+        if (network.chainId !== 1337n) {
+          try {
+            // Request network switch to Ganache
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x539' }], // 1337 in hex
+            });
+          } catch (switchError) {
+            // If Ganache network doesn't exist, add it
+            if (switchError.code === 4902) {
+              try {
+                await window.ethereum.request({
+                  method: 'wallet_addEthereumChain',
+                  params: [{
+                    chainId: '0x539',
+                    chainName: 'Ganache',
+                    nativeCurrency: {
+                      name: 'ETH',
+                      symbol: 'ETH',
+                      decimals: 18
+                    },
+                    rpcUrls: ['http://127.0.0.1:7545'],
+                    blockExplorerUrls: null
+                  }]
+                });
+              } catch (addError) {
+                error = 'Failed to add Ganache network: ' + addError.message;
+                console.error('Failed to add Ganache network:', addError);
+                return;
+              }
+            } else {
+              error = 'Failed to switch to Ganache network: ' + switchError.message;
+              console.error('Failed to switch network:', switchError);
+              return;
+            }
+          }
+        }
+        
         // Initialize contract
         await initializeContract();
         
@@ -235,6 +274,19 @@
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner(selectedAccount);
       contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      
+      // Verify contract exists and is accessible
+      try {
+        const code = await provider.getCode(CONTRACT_ADDRESS);
+        if (code === '0x') {
+          throw new Error('Contract does not exist at the specified address');
+        }
+      } catch (err) {
+        error = 'Contract verification failed: ' + err.message;
+        console.error('Contract verification error:', err);
+        return;
+      }
+      
       contractState.isInitialized = true;
       console.log('Contract initialized successfully');
     } catch (err) {
