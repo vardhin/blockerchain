@@ -10,8 +10,11 @@
   let loading = false;
   let friendAddress = '';
   let amountToSend = 0;
+  let username = '';
+  let usernames = {};
 
-  const CONTRACT_ADDRESS = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
+  // Update with your deployed contract address
+  const CONTRACT_ADDRESS = '0xA88535C9C4F446857975fa18a154eD6AA57d98A1';
   const CONTRACT_ABI = [
     {
       "inputs": [],
@@ -26,6 +29,24 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [{"type": "string"}],
+      "name": "setUsername",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"type": "address"}],
+      "name": "getUsername",
+      "outputs": [{"type": "string"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "receive"
     }
   ];
 
@@ -35,28 +56,22 @@
         loading = true;
         error = '';
         
-        // Request permissions for all accounts
-        await window.ethereum.request({
-          method: 'wallet_requestPermissions',
-          params: [{
-            eth_accounts: {}
-          }]
-        });
-        
-        // Get all accounts after permission
+        // Request accounts
         accounts = await window.ethereum.request({
-          method: 'eth_accounts'
+          method: 'eth_requestAccounts'  // Changed from wallet_requestPermissions
         });
         
-        console.log('Connected accounts:', accounts); // Debug log
+        console.log('Connected accounts:', accounts);
         
-        // Set first account as default if none selected
-        if (!selectedAccount) {
+        if (!selectedAccount && accounts.length > 0) {
           selectedAccount = accounts[0];
         }
         
         // Initialize contract
         await initializeContract();
+        
+        // Load initial values
+        await loadInitialData();
         
       } catch (err) {
         error = 'Error connecting wallet: ' + err.message;
@@ -70,72 +85,86 @@
   }
 
   async function initializeContract() {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner(selectedAccount);
-    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner(selectedAccount);
+      contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+    } catch (err) {
+      error = 'Failed to initialize contract: ' + err.message;
+      console.error('Contract initialization error:', err);
+    }
+  }
+  
+  async function loadInitialData() {
+    if (contract && selectedAccount) {
+      await getValue();
+      await loadUsernames();
+    }
+  }
+  
+  async function loadUsernames() {
+    for (const account of accounts) {
+      await loadUsername(account);
+    }
   }
 
-  async function switchAccount(account) {
-    selectedAccount = account;
-    await initializeContract();
-  }
-
-  async function getBalance(account) {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const balance = await provider.getBalance(account);
-    return ethers.formatEther(balance);
-  }
-
+  let txStatus = '';
+  
   async function setValue() {
     try {
       loading = true;
       error = '';
+      txStatus = 'Sending transaction...';
+      
       const tx = await contract.store(value);
+      txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+      
+      // Wait for confirmation
+      txStatus = 'Waiting for confirmation...';
       await tx.wait();
+      txStatus = 'Value successfully stored!';
+      await getValue();
+      setTimeout(() => txStatus = '', 5000);
     } catch (err) {
       error = 'Error setting value: ' + err.message;
       console.error('Error setting value:', err);
+      txStatus = '';
     } finally {
       loading = false;
     }
   }
 
-  async function getValue() {
-    try {
-      const result = await contract.retrieve();
-      value = Number(result);
-    } catch (err) {
-      error = 'Error getting value: ' + err.message;
-      console.error('Error getting value:', err);
+  async function setUsername() {
+    if (!username.trim()) {
+      error = 'Username cannot be empty';
+      return;
     }
-  }
-
-  async function sendEth() {
+    
     try {
       loading = true;
       error = '';
+      txStatus = 'Setting username...';
       
-      if (!ethers.isAddress(friendAddress)) {
-        throw new Error('Invalid Ethereum address');
-      }
+      const tx = await contract.setUsername(username);
+      txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
       
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner(selectedAccount);
-      
-      const tx = await signer.sendTransaction({
-        to: friendAddress,
-        value: ethers.parseEther(amountToSend.toString())
-      });
-      
+      // Wait for confirmation
+      txStatus = 'Waiting for confirmation...';
       await tx.wait();
+      
+      // Update local usernames object
+      usernames[selectedAccount] = username;
+      txStatus = 'Username successfully set!';
+      setTimeout(() => txStatus = '', 5000);
     } catch (err) {
-      error = 'Error sending ETH: ' + err.message;
-      console.error('Error sending ETH:', err);
+      error = 'Error setting username: ' + err.message;
+      console.error('Error setting username:', err);
+      txStatus = '';
     } finally {
       loading = false;
     }
   }
-
+  
   onMount(() => {
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', function (newAccounts) {
@@ -152,10 +181,14 @@
 </svelte:head>
 
 <main class="container">
-  <h1 class="title">SimpleStorage DApp</h1>
+  <h1 class="title">BlockerChain DApp</h1>
   
   {#if error}
     <p class="error">{error}</p>
+  {/if}
+
+  {#if txStatus}
+    <div class="tx-status">{txStatus}</div>
   {/if}
   
   {#if accounts.length === 0}
@@ -182,6 +215,28 @@
 
     <div class="interaction">
       <h3 class="selected-account">Selected Account: {selectedAccount.slice(0, 6)}...{selectedAccount.slice(-4)}</h3>
+      
+      <div class="username-section card">
+        <h4 class="card-title">Set Username</h4>
+        <div class="input-group">
+          <input type="text" bind:value={username} class="input" placeholder="Enter username">
+          <button on:click={setUsername} disabled={loading} class="action-btn">
+            {loading ? 'Setting...' : 'Set Username'}
+          </button>
+        </div>
+      </div>
+
+      <div class="accounts card">
+        <h4 class="card-title">Usernames</h4>
+        {#each accounts as account}
+          <div class="account-item">
+            <span>{account.slice(0, 6)}...{account.slice(-4)}</span>
+            {#await loadUsername(account) then name}
+              <span class="username">{name || 'No username set'}</span>
+            {/await}
+          </div>
+        {/each}
+      </div>
       
       <div class="contract-interaction card">
         <h4 class="card-title">Contract Interaction</h4>
@@ -289,6 +344,16 @@
     font-family: 'Quicksand', sans-serif;
   }
 
+  .tx-status {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin: 0.5rem 0;
+    text-align: center;
+    border-left: 4px solid #3b82f6;
+  }
+  
   .account-item button:hover {
     background: #374151;
   }
@@ -302,6 +367,16 @@
   .balance {
     font-family: 'Quicksand', monospace;
     color: #9ca3af;
+  }
+  
+  .username {
+    font-weight: 500;
+    color: #60a5fa;
+    padding-left: 0.5rem;
+  }
+  
+  .username-section {
+    margin-bottom: 1rem;
   }
 
   .selected-account {

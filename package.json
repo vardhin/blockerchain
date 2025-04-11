@@ -18,6 +18,7 @@
 	},
 	"dependencies": {
 		"@truffle/contract": "^4.6.31",
+		"dotenv": "^16.5.0",
 		"ethers": "^6.13.5",
 		"truffle": "^5.11.5",
 		"web3": "^4.16.0"
