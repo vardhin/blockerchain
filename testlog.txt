@@ -1,13 +1,33 @@
-❯ npx hardhat compile
-TypeError: Member "length" not found or not visible after argument-dependent lookup in string storage ref.
-   --> contracts/BlockerChain.sol:128:17:
-    |
-128 |         require(carbonProfiles[msg.sender].name.length > 0, "Buyer must have a profile");
-    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-Error HH600: Compilation failed
-
-For more info go to https://hardhat.org/HH600 or run Hardhat with --show-stack-traces
-
-Error creating profile: missing revert data (action="estimateGas", data=null, reason=null, transaction={ "data": "0xaecdd523000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000004736574680000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000167468697320697320612074657374206163636f756e7400000000000000000000", "from": "0xa576292FA67EaB9eD6b96eB8E97FD6030E89EA12", "to": "0xA88535C9C4F446857975fa18a154eD6AA57d98A1" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.13.5)
+Removing unpermitted intrinsics lockdown-install.js:1:87038
+Detect loaded detect_bundled.js:6:3443
+[vite] connecting... client:743:8
+[vite] connected. client:866:14
+Attempting to connect wallet... +page.svelte:190:16
+Connected accounts: 
+Array [ "0xa576292fa67eab9ed6b96eb8e97fd6030e89ea12" ]
++page.svelte:197:16
+Connected to network: 
+Object {  }
++page.svelte:208:16
+Initializing contract... +page.svelte:234:14
+Contract initialized successfully +page.svelte:239:14
+MetaMask - RPC Error: Internal JSON-RPC error. 
+Object { code: -32603, message: "Internal JSON-RPC error.", data: {…}, stack: "Error@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/scripts/runtime-lavamoat.js:9362:17\no@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:596656\na@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:599747\ninternal@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:600357\nc@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:568382\ns.createFetchMiddleware/<@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:569385\n" }
+localhost:5173:1:91765
+Error loading carbon credit data: Error: execution reverted (no data present; likely require(false) occurred (action="call", data="0x", reason="require(false)", transaction={ "data": "0xf27b7e2a", "to": "0xA88535C9C4F446857975fa18a154eD6AA57d98A1" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.13.5)
+    makeError errors.ts:694
+    getBuiltinCallException abi-coder.ts:118
+    getBuiltinCallException abi-coder.ts:235
+    makeError interface.ts:925
+    staticCallResult contract.ts:340
++page.svelte:282:16
+MetaMask - RPC Error: Internal JSON-RPC error. 
+Object { code: -32603, message: "Internal JSON-RPC error.", data: {…}, stack: "Error@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/scripts/runtime-lavamoat.js:9362:17\no@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:596656\na@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:599747\ninternal@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-2.js:1:600357\nc@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:568382\ns.createFetchMiddleware/<@moz-extension://eae85777-dc9b-46a4-8a1a-27891d2a50c4/common-0.js:1:569385\n" }
+localhost:5173:1:91765
+Error creating profile: Error: missing revert data (action="estimateGas", data=null, reason=null, transaction={ "data": "0xaecdd523000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000004736574680000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000047465737400000000000000000000000000000000000000000000000000000000", "from": "0xa576292FA67EaB9eD6b96eB8E97FD6030E89EA12", "to": "0xA88535C9C4F446857975fa18a154eD6AA57d98A1" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.13.5)
+    makeError errors.ts:694
+    getBuiltinCallException abi-coder.ts:118
+    getBuiltinCallException abi-coder.ts:235
+    getRpcError provider-jsonrpc.ts:989
+    getRpcError provider-browser.ts:122
+    scheduleDrain_fn provider-jsonrpc.ts:563
