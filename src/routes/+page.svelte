@@ -721,12 +721,16 @@
       const code = await provider.getCode(CONTRACT_ADDRESS);
       console.log('Contract code exists:', code !== '0x');
       
+      // Create the profile with higher gas limit for provider profiles
+      const gasLimit = isProvider ? 1000000 : 500000;
+      console.log(`Using gas limit: ${gasLimit}`);
+      
       // Create the profile with explicit gas limit
       const tx = await contract.createProfile(
         profileName, 
         profileDescription, 
         isProvider,
-        { gasLimit: 500000 } // Add explicit gas limit
+        { gasLimit: gasLimit } // Higher gas limit for provider profiles
       );
       
       txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
@@ -751,6 +755,11 @@
         console.error('2. Wrong network connection');
         console.error('3. Contract ABI mismatch');
         console.error('4. Insufficient gas');
+        
+        // Check if this is a provider profile and suggest increasing gas
+        if (isProvider) {
+          error += ' (Provider profiles may require more gas. Try again with a higher gas limit.)';
+        }
       }
       
       txStatus = '';
@@ -770,7 +779,8 @@
       error = '';
       txStatus = 'Adding credits...';
       
-      const tx = await contract.addCredits(amountToAdd);
+      // Use a higher gas limit for adding credits
+      const tx = await contract.addCredits(amountToAdd, { gasLimit: 500000 });
       txStatus = `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
       
       // Wait for confirmation
@@ -787,6 +797,15 @@
     } catch (err) {
       error = 'Error adding credits: ' + err.message;
       console.error('Error adding credits:', err);
+      
+      // Add more detailed error information
+      if (err.code === 'CALL_EXCEPTION') {
+        console.error('Transaction failed. This could be due to:');
+        console.error('1. Insufficient gas');
+        console.error('2. Contract state error');
+        console.error('3. Network issues');
+      }
+      
       txStatus = '';
     } finally {
       loading = false;
